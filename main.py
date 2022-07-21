@@ -10,7 +10,7 @@ image_height = 0
 iterator = 0
 last_perf_counter = time.perf_counter()
 current_throttle_time = 0
-
+debug_added_nodes = 0
 
 class tracked_eye:
     def __init__(self, cx, cy):
@@ -48,78 +48,77 @@ tracked_eye_list = []
 # number signifies camera
 cap = cv2.VideoCapture(0)
 
+
 while 1:
     blink_interval = 3.0
     ret, img = cap.read()
     current_blink_time_sum = 0
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-    for (x, y, w, h) in faces:
-        if x == 0 or y == 0 or w == 0 or h == 0:
+
+    # cv2.rectangle(img, (x, y), (x+w, y+h), (0, 0, 255), 2)
+    eyes = eye_cascade.detectMultiScale(gray, 1.3, 5)
+    # print(f'{len(faces)} faces ({faces}), {len(eyes)} eyes ({eyes})', end='                                              \r')
+    for (ex, ey, ew, eh) in eyes:
+        if ex == 0 or ey == 0 or ey == 0:
             continue
 
-        x = int(x)
-        y = int(y)
-        w = int(w)
-        h = int(h)
-        # cv2.rectangle(img, (x, y), (x+w, y+h), (0, 0, 255), 2)
-        eyes = eye_cascade.detectMultiScale(gray, 1.3, 5)
-        # print(f'{len(faces)} faces ({faces}), {len(eyes)} eyes ({eyes})', end='                                              \r')
-        for (ex, ey, ew, eh) in eyes:
-            if ex == 0 or ey == 0 or ey == 0 or w == 0 or h == 0:
-                continue
+        ex = int(ex)
+        ey = int(ey)
+        ew = int(ew)
+        eh = int(eh)
 
-            ex = int(ex)
-            ey = int(ey)
-            ew = int(ew)
-            eh = int(eh)
-
-            cv2.rectangle(img, (ex, ey), (ex+ew, ey+eh), (0, 255, 0), 2)
-            if(len(tracked_eye_list) <= 0):
+        cv2.rectangle(img, (ex, ey), (ex+ew, ey+eh), (0, 255, 0), 2)
+        if(len(tracked_eye_list) <= 0):
+            tracked_eye_list.append(tracked_eye(ex+ew/2, ey+eh/2))
+            debug_added_nodes += 1
+        else:
+            activated_count = 0
+            for eye_entity in tracked_eye_list:
+                code = eye_entity.update(ex, ey, ew, eh)
+                if code == 1:
+                    activated_count += 1
+                    break
+            if activated_count == 0:
                 tracked_eye_list.append(tracked_eye(ex+ew/2, ey+eh/2))
-            else:
-                activated_count = 0
-                for eye_entity in tracked_eye_list:
-                    code = eye_entity.update(ex, ey, ew, eh)
-                    if code == 1:
-                        activated_count += 1
-                        break
-                if activated_count == 0:
-                    tracked_eye_list.append(tracked_eye(ex+ew/2, ey+eh/2))
+                debug_added_nodes += 1
 
-        for eye_entity in tracked_eye_list:
-            if eye_entity.referenced <= 0:
-                eye_entity.no_reference_warning()
-                cv2.circle(img, (int(eye_entity.cx), int(
-                eye_entity.cy)), 12, (0, 0, 255), 2)
+    eye_eligible_count = 0
+    for eye_entity in tracked_eye_list:
+        if eye_entity.referenced <= 0:
+            eye_entity.no_reference_warning()
+            cv2.circle(img, (int(eye_entity.cx), int(
+            eye_entity.cy)), 12, (0, 0, 255), 2)
+        else:
+            cv2.circle(img, (int(eye_entity.cx), int(
+            eye_entity.cy)), 12, (255, 0, 0), 2)
+        if eye_entity.dead_ticks == 3:
+            if eye_entity.last_timer == -1:
+                eye_entity.last_timer = time.perf_counter()
+                
             else:
-                cv2.circle(img, (int(eye_entity.cx), int(
-                eye_entity.cy)), 12, (255, 0, 0), 2)
-            if eye_entity.dead_ticks == 3:
-                if eye_entity.last_timer == -1:
-                    eye_entity.last_timer = time.perf_counter()
-                else:
-                    eye_entity.spb = (
-                        eye_entity.spb * 5 + (time.perf_counter() - eye_entity.last_timer))/6
-                    eye_entity.last_timer = time.perf_counter()
-            if eye_entity.dead_ticks > 30:
-                tracked_eye_list.remove(eye_entity)
-                continue
-            
+                eye_entity.spb = (
+                    eye_entity.spb * 5 + (time.perf_counter() - eye_entity.last_timer))/6
+                eye_entity.last_timer = time.perf_counter()
+        if eye_entity.dead_ticks > 30:
+            tracked_eye_list.remove(eye_entity)
+            continue
+        if(eye_entity.age > 30):
+            eye_eligible_count += 1
             current_blink_time_sum += eye_entity.spb
-            eye_entity.reset()
-            # print(f'[{eye_entity.cx} {eye_entity.cy}]', end=' / ')
+        eye_entity.reset()
+        # print(f'[{eye_entity.cx} {eye_entity.cy}]', end=' / ')
 
-    if(len(tracked_eye_list) > 0):
-        blink_interval = current_blink_time_sum / len(tracked_eye_list)
+    if(eye_eligible_count > 0):
+        blink_interval = current_blink_time_sum / eye_eligible_count
         if blink_interval == 0:
             blink_interval = 3
     
     # print(f'blink_interval: ', end=' / ')
-    if iterator % 50 == 0 and iterator > 50:
+    if iterator % 10 == 0 and iterator > 10:
         this_perf_counter = time.perf_counter()
-        print(f'{round(blink_interval,2)}spb, {round(60/blink_interval,1)}bpm / {len(tracked_eye_list)} / {round(1/((this_perf_counter-last_perf_counter)/50), 2)}fps', end="        \r")
+        print(f'{round(blink_interval,2)}spb, {round(60/blink_interval,1)}bpm / {len(tracked_eye_list)}+{debug_added_nodes} / {round(1/((this_perf_counter-last_perf_counter)/10), 2)}fps', end="        \r")
         last_perf_counter = this_perf_counter
+        debug_added_nodes = 0
 
     # print(end="                                               \r")
     iterator += 1

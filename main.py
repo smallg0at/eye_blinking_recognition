@@ -1,4 +1,5 @@
 import time
+from cv2 import CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH
 import numpy as np
 import cv2
 import math
@@ -47,6 +48,9 @@ tracked_eye_list = []
 
 # number signifies camera
 cap = cv2.VideoCapture(0)
+cap.set(CAP_PROP_FRAME_WIDTH, 1280)
+cap.set(CAP_PROP_FRAME_HEIGHT, 720)
+print(f'Camera resolution: {cap.get(CAP_PROP_FRAME_WIDTH)} x {cap.get(CAP_PROP_FRAME_HEIGHT)}')
 
 
 while 1:
@@ -122,7 +126,7 @@ while 1:
 
     # print(end="                                               \r")
     iterator += 1
-    cv2.imshow('img', img)
+    cv2.imshow('Debug Window', img)
     k = cv2.waitKey(1) & 0xff
     if k == 27:
         print()

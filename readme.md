@@ -15,3 +15,9 @@ Code for eye blinking recognition, work in progress.
 - [ ] Improve performance
   - Currently ~~~25fps~~ 30fps, should be better
   - expects ~50fps
+
+### How to set-up
+
+```
+pip install -r requirements.txt
+```

@@ -1,3 +1,5 @@
+//Abandoned code, deprecated.
+
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <string.h>
